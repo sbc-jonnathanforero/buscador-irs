@@ -135,23 +135,23 @@
 
 <script>
     // -----------------------------------------------------------------------
-    // CÓDIGO JAVASCRIPT PARA EL ENVÍO ASÍNCRONO (AJAX)
+    // CÓDIGO JAVASCRIPT PARA EL ENVÍO ASÍNCRONO (AJAX) - VERSIÓN DE REDIRECCIÓN
     // -----------------------------------------------------------------------
+    
     // ¡IMPORTANTE! REEMPLAZA ESTA VARIABLE CON LA URL EXACTA DE TU WEBHOOK
     const WEBHOOK_URL = "https://n8n.subocol.com/webhook/f20e3e00-e8d2-41c4-a2de-2e7939c52869";
 
     document.addEventListener('DOMContentLoaded', () => {
         const form = document.getElementById('consultaForm');
-        const resultadoDiv = document.getElementById('resultado-container');
+        // NOTA: 'resultadoDiv' ya no es necesario si eliminas la caja de HTML
         const submitButton = document.getElementById('submitButton');
 
         form.addEventListener('submit', async (event) => {
             event.preventDefault(); // Detiene el envío normal del formulario (navegación)
             
-            // 1. Mostrar estado de carga
-            resultadoDiv.innerHTML = '<p class="text-blue-600 font-medium text-center">Buscando código... (Esto puede tardar unos segundos)</p>';
+            // 1. Mostrar estado de carga (AQUÍ DEBES USAR UN INDICADOR VISUAL, NO NECESITAS resultadoDiv)
             submitButton.disabled = true; // Deshabilita el botón
-            submitButton.textContent = 'Procesando...'; 
+            submitButton.textContent = 'Procesando...'; 
 
             // 2. Recolección de Datos del Formulario
             const formData = new FormData(form);
@@ -165,25 +165,34 @@
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json', // Le dice a n8n que espere JSON
+                        'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(data), // Envía los datos como JSON
+                    body: JSON.stringify(data), 
                 });
 
-                // 4. Procesa la Respuesta de n8n
-                const finalResponseText = await response.text(); 
+                // 4. Procesa la Respuesta de n8n como JSON
+                const finalResponse = await response.json(); 
                 
-                // Muestra la respuesta en la sección "resultado-container"
-                resultadoDiv.innerHTML = `
-                    <h3 class="text-xl font-bold text-green-700 mt-4">✅ Resultado del Pipeline:</h3>
-                    <p class="mt-2 p-3 bg-gray-100 rounded-lg whitespace-pre-wrap">${finalResponseText}</p>
-                `;
+                if (response.ok && (finalResponse.status === 'success' || finalResponse.status === 'not_found')) {
+                    
+                    // 5. Almacenar los datos de la respuesta en sessionStorage
+                    sessionStorage.setItem('irs_result', JSON.stringify(finalResponse)); // ¡Guardamos el JSON COMPLETO!
+
+                    // 6. Redirige al usuario
+                    window.location.href = finalResponse.redirect_url;
+                    return; // Detiene la ejecución para que no se ejecute el 'finally' inmediatamente
+                    
+                } else {
+                    // Si n8n devuelve un código 200 pero el status es error, manejar aquí
+                    alert('Error en el flujo de homologación: ' + (finalResponse.message || 'Error desconocido.'));
+                }
 
             } catch (error) {
                 // Manejo de errores de red o fallo en n8n
-                resultadoDiv.innerHTML = `<h3 class="text-xl font-bold text-red-600 mt-4">⚠️ Error de Conexión o del Flujo de n8n.</h3><p>${error.message}</p>`;
+                alert(`Error de Conexión: ${error.message}. Verifica la consola para más detalles.`);
+                console.error("Fallo durante el fetch:", error);
             } finally {
-                // 5. Finalización
+                // 7. Finalización (solo se ejecuta si NO hubo redirección)
                 submitButton.textContent = 'Buscar Código';
                 submitButton.disabled = false;
             }
