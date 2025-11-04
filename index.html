@@ -127,10 +127,6 @@
                 
             </form>
 
-            <hr class="my-6">
-            
-            <div id="resultado-container" class="resultado-card">
-                <p class="text-gray-600 font-medium">La respuesta del código IRS aparecerá aquí después de la búsqueda.</p>
             </div>
         </div>
     </div>
@@ -141,7 +137,6 @@
     // -----------------------------------------------------------------------
     // CÓDIGO JAVASCRIPT PARA EL ENVÍO ASÍNCRONO (AJAX)
     // -----------------------------------------------------------------------
-    
     // ¡IMPORTANTE! REEMPLAZA ESTA VARIABLE CON LA URL EXACTA DE TU WEBHOOK
     const WEBHOOK_URL = "https://n8n.subocol.com/webhook/f20e3e00-e8d2-41c4-a2de-2e7939c52869";
 
@@ -170,42 +165,30 @@
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json', // Le dice a n8n que espere JSON
                     },
                     body: JSON.stringify(data), // Envía los datos como JSON
                 });
 
                 // 4. Procesa la Respuesta de n8n
-                const finalResponse = await response.json(); 
+                const finalResponseText = await response.text(); 
                 
-                if (response.ok && finalResponse.status === 'success') {
-                    // 5. ¡ÉXITO! Redirige al usuario
-                    
-                    // Opcional: Almacenar los datos de la respuesta en sessionStorage antes de redirigir
-                    // Esto es ÚTIL si la URL de destino (GitHub Pages) necesita mostrar los resultados
-                    sessionStorage.setItem('irs_result', JSON.stringify(finalResponse.result_data));
-
-                    window.location.href = finalResponse.redirect_url;
-                    return; // Detiene la ejecución para que no se ejecute el 'finally' inmediatamente
-                    
-                } else {
-                    // Si el estado no es 'success' o hay un error de n8n
-                    const errorMessage = finalResponse.message || 'Error desconocido del flujo de n8n.';
-                    resultadoDiv.innerHTML = `
-                        <h3 class="text-xl font-bold text-red-600 mt-4">⚠️ Error en la Homologación:</h3>
-                        <p class="mt-2 p-3 bg-gray-100 rounded-lg whitespace-pre-wrap">${errorMessage}</p>
-                    `;
-                }
+                // Muestra la respuesta en la sección "resultado-container"
+                resultadoDiv.innerHTML = `
+                    <h3 class="text-xl font-bold text-green-700 mt-4">✅ Resultado del Pipeline:</h3>
+                    <p class="mt-2 p-3 bg-gray-100 rounded-lg whitespace-pre-wrap">${finalResponseText}</p>
+                `;
 
             } catch (error) {
-                // Manejo de errores de red o JSON inválido
-                resultadoDiv.innerHTML = `<h3 class="text-xl font-bold text-red-600 mt-4">❌ Error de Conexión.</h3><p>${error.message}</p>`;
+                // Manejo de errores de red o fallo en n8n
+                resultadoDiv.innerHTML = `<h3 class="text-xl font-bold text-red-600 mt-4">⚠️ Error de Conexión o del Flujo de n8n.</h3><p>${error.message}</p>`;
             } finally {
-                // 6. Finalización (solo se ejecuta si NO hubo redirección)
+                // 5. Finalización
                 submitButton.textContent = 'Buscar Código';
                 submitButton.disabled = false;
             }
         });
     });
 </script>
+
 </html>
