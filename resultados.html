@@ -1,76 +1,68 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Resultado de Homologación</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; padding-top: 50px; }
-        .card-container { display: flex; justify-content: center; align-items: center; min-height: 80vh; }
-        .data-label { font-weight: 600; color: #4b5563; } /* Gris medio oscuro */
-        .data-value { font-weight: 700; color: #10b981; font-size: 1.125rem; } /* Verde esmeralda */
-    </style>
-</head>
-<body>
-
-    <div class="card-container">
-        <div id="result-card" class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
-            <h2 class="text-3xl font-bold mb-6 text-green-700 text-center border-b-2 pb-3">✅ Homologación Exitosa</h2>
-            
-            <div id="result-details">
-                <p class="text-center text-gray-500">Cargando resultados...</p>
-            </div>
-
-            <a href="index.html" class="mt-8 block text-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-blue-600 hover:bg-blue-700 transition duration-200">
-                Hacer una Nueva Consulta
-            </a>
-        </div>
-    </div>
-
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const resultDetailsDiv = document.getElementById('result-details');
+        const resultCard = document.getElementById('result-card'); // Captura la tarjeta
+        const mainTitle = resultCard.querySelector('h2');          // Captura el título
         const irsResultJson = sessionStorage.getItem('irs_result');
 
         if (irsResultJson) {
             try {
-                const data = JSON.parse(irsResultJson);
-                
-                // Limpia el mensaje de "Cargando"
-                resultDetailsDiv.innerHTML = ''; 
+                const finalResponse = JSON.parse(irsResultJson);
+                const data = finalResponse.result_data;
+                const status = finalResponse.status; // Lee el nuevo status de n8n
 
-                // Crea y muestra el contenido dinámico
-                resultDetailsDiv.innerHTML = `
-                    <div class="mb-4 p-4 border rounded-lg bg-green-50 border-green-200">
-                        <p class="data-label mb-1">Código IRS Homologado:</p>
-                        <p id="codigo_irs" class="data-value text-4xl mb-4">${data.codigo_irs || 'N/A'}</p>
-                    </div>
-                    <div class="mb-4">
-                        <p class="data-label">País de la Búsqueda:</p>
-                        <p class="text-gray-800 text-lg">${data.pais_buscado ? data.pais_buscado.charAt(0).toUpperCase() + data.pais_buscado.slice(1) : 'N/A'}</p>
-                    </div>
-                    <div class="mb-6">
-                        <p class="data-label">Nombre de la Pieza Homologada:</p>
-                        <p class="text-gray-800 text-lg">${data.nombre_pieza_homologada || 'No especificado'}</p>
-                    </div>
-                `;
+                // --- MANEJO DE ESTADOS ---
+                if (status === 'success') {
+                    // Estado de ÉXITO
+                    mainTitle.textContent = "✅ Homologación Exitosa";
+                    mainTitle.classList.add('text-green-700');
+                    // El resto del diseño (verde) se mantiene
+                    
+                    // Contenido de Éxito
+                    resultDetailsDiv.innerHTML = `
+                        <p class="text-xl font-semibold mb-4 text-gray-700">La pieza **${data.nombre_pieza_homologada || 'N/A'}** fue encontrada.</p>
+                        <div class="mb-4 p-4 border rounded-lg bg-green-50 border-green-200">
+                            <p class="data-label mb-1">Código IRS Homologado:</p>
+                            <p id="codigo_irs" class="data-value text-4xl mb-4">${data.codigo_irs || 'N/A'}</p>
+                        </div>
+                        <div class="mb-4">
+                            <p class="data-label">País de la Búsqueda:</p>
+                            <p class="text-gray-800 text-lg">${data.pais_buscado ? data.pais_buscado.charAt(0).toUpperCase() + data.pais_buscado.slice(1) : 'N/A'}</p>
+                        </div>
+                    `;
 
-                // Opcional: Limpiar el almacenamiento después de usarlo para evitar que persistan datos viejos
+                } else if (status === 'not_found' || status === 'error') {
+                    // Estado de NO ENCONTRADO / ERROR
+                    mainTitle.textContent = "❌ Homologación No Encontrada";
+                    mainTitle.classList.remove('text-green-700');
+                    mainTitle.classList.add('text-red-700'); // Cambia a color rojo
+
+                    // Contenido de Fallo
+                    resultDetailsDiv.innerHTML = `
+                        <p class="text-red-600 font-medium text-center text-lg mb-4">
+                            No fue posible encontrar el Código IRS para la pieza **${data.nombre_pieza_homologada || data.nombre_pieza_homologada || 'solicitada'}**.
+                        </p>
+                        <div class="mb-4 p-4 border rounded-lg bg-red-50 border-red-200 text-center">
+                            <p class="data-label mb-1">País / Pieza Buscada:</p>
+                            <p class="text-gray-800 text-lg">
+                                ${data.pais_buscado ? data.pais_buscado.charAt(0).toUpperCase() + data.pais_buscado.slice(1) : 'N/A'} / ${data.nombre_pieza_homologada || 'N/A'}
+                            </p>
+                        </div>
+                    `;
+                }
+
+                // Limpiar el almacenamiento después de usarlo
                 sessionStorage.removeItem('irs_result');
 
             } catch (e) {
-                resultDetailsDiv.innerHTML = `
-                    <p class="text-red-600 font-medium text-center">Error al procesar los resultados (JSON inválido en sessionStorage).</p>
-                `;
+                // Manejo de JSON inválido en sessionStorage
+                mainTitle.textContent = "⚠️ Error Interno";
+                mainTitle.classList.add('text-yellow-700');
+                resultDetailsDiv.innerHTML = `<p class="text-red-600 font-medium text-center">Error al procesar los datos de sesión.</p>`;
             }
         } else {
             // Manejo si el usuario accede a resultados.html directamente
-            resultDetailsDiv.innerHTML = `
-                <p class="text-red-600 font-medium text-center">No se encontraron resultados de una consulta previa.</p>
-                <p class="text-center text-gray-500 mt-2">Por favor, inicie una nueva búsqueda.</p>
-            `;
+            // (El código original para "No se encontraron resultados de una consulta previa" aquí)
         }
     });
 </script>
-
-</body>
-</html>
